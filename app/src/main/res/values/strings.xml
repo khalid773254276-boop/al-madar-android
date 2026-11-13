@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Al-Madar</string>
+    <string name="error_title">Unable to load the store</string>
+    <string name="load_error">Something went wrong while loading the store. Check your connection and try again.</string>
+    <string name="no_connection">No internet connection. Connect to the internet and try again.</string>
+    <string name="retry">Try again</string>
+</resources>
