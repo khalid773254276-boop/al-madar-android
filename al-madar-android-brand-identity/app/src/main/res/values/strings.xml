@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Al-Madar</string>
+    <string name="splash_loading">Loading...</string>
+    <string name="offline_title">Connection Unavailable</string>
+    <string name="offline_message">Please check your internet connection and try again.</string>
+    <string name="retry">Retry</string>
+</resources>
