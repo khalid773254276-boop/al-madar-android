@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="background">#F7F4EE</color>
-    <color name="primary">#111111</color>
-    <color name="gold">#C6A56B</color>
-    <color name="gray">#858585</color>
+    <color name="deep_black">#111111</color>
+    <color name="charcoal">#242424</color>
+    <color name="warm_ivory">#F7F4EE</color>
+    <color name="soft_white">#FFFFFF</color>
+    <color name="champagne_gold">#C6A56B</color>
+    <color name="muted_gray">#858585</color>
+    <color name="brand_navy_dark">#010111</color>
+    <color name="brand_splash_navy">#031A3B</color>
+    <color name="brand_gold_accent">#F4A825</color>
 </resources>

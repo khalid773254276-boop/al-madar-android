@@ -1,179 +1,121 @@
 package com.almadar.store
 
 import android.annotation.SuppressLint
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
+import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
-import android.webkit.CookieManager
-import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.ProgressBar
-import android.widget.TextView
+import android.widget.RelativeLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 class MainActivity : AppCompatActivity() {
+
     private lateinit var webView: WebView
     private lateinit var swipeRefresh: SwipeRefreshLayout
-    private lateinit var progress: ProgressBar
-    private lateinit var errorPanel: View
-    private lateinit var errorMessage: TextView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var errorView: LinearLayout
+    private lateinit var splashOverlay: RelativeLayout
 
-    companion object {
-        private const val STORE_URL = "https://al-madar.vercel.app"
-    }
+    private val storeBaseUrl = "https://al-madar.vercel.app"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        swipeRefresh = findViewById(R.id.swipeRefresh)
         webView = findViewById(R.id.webView)
-        progress = findViewById(R.id.pageProgress)
-        errorPanel = findViewById(R.id.errorPanel)
-        errorMessage = findViewById(R.id.errorMessage)
-        val retryButton: Button = findViewById(R.id.retryButton)
+        swipeRefresh = findViewById(R.id.swipeRefresh)
+        progressBar = findViewById(R.id.progressBar)
+        errorView = findViewById(R.id.errorView)
+        splashOverlay = findViewById(R.id.splashOverlay)
+        val retryBtn: Button = findViewById(R.id.retryButton)
 
-        swipeRefresh.setColorSchemeResources(R.color.gold)
-        swipeRefresh.setOnRefreshListener { loadStore() }
-        retryButton.setOnClickListener { loadStore() }
-
-        CookieManager.getInstance().setAcceptCookie(true)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
-
-        webView.settings.apply {
+        with(webView.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
-            loadsImagesAutomatically = true
-            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            javaScriptCanOpenWindowsAutomatically = false
-            setSupportMultipleWindows(false)
             cacheMode = WebSettings.LOAD_DEFAULT
-            userAgentString = "$userAgentString AlMadarAndroid/1.0"
-        }
-
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                progress.progress = newProgress
-                progress.visibility = if (newProgress in 1..99) View.VISIBLE else View.GONE
-                if (newProgress == 100) swipeRefresh.isRefreshing = false
-            }
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            userAgentString = "$userAgentString AlMadarApp/1.1"
         }
 
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                val scheme = request.url.scheme?.lowercase()
-                val host = request.url.host?.lowercase().orEmpty()
-                // Keep HTTPS storefront, Shopify checkout and payment pages in this WebView.
-                return when {
-                    scheme == "https" && (
-                        host == "al-madar.vercel.app" ||
-                        host == "myshopify.com" || host.endsWith(".myshopify.com") ||
-                        host == "shopify.com" || host.endsWith(".shopify.com") ||
-                        host == "shop.app" || host.endsWith(".shop.app") ||
-                        host == "vercel.app" || host.endsWith(".vercel.app")
-                    ) -> false
-                    scheme == "https" -> false // Keep secure payment-provider redirects in-app.
-                    scheme == "http" -> true // Cleartext is intentionally blocked.
-                    else -> true
-                }
-            }
-
-            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                errorPanel.visibility = View.GONE
-                progress.visibility = View.VISIBLE
-                progress.progress = 0
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                errorView.visibility = View.GONE
+                progressBar.visibility = View.VISIBLE
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
+                progressBar.visibility = View.GONE
                 swipeRefresh.isRefreshing = false
-                progress.visibility = View.GONE
-                errorPanel.visibility = View.GONE
+                if (splashOverlay.visibility == View.VISIBLE) {
+                    splashOverlay.animate()
+                        .alpha(0f)
+                        .setDuration(280L)
+                        .withEndAction { splashOverlay.visibility = View.GONE }
+                        .start()
+                }
             }
 
             override fun onReceivedError(
-                view: WebView,
-                request: WebResourceRequest,
-                error: WebResourceError
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: WebResourceError?
             ) {
-                if (request.isForMainFrame) showError()
+                if (request?.isForMainFrame == true) {
+                    progressBar.visibility = View.GONE
+                    swipeRefresh.isRefreshing = false
+                    splashOverlay.visibility = View.GONE
+                    errorView.visibility = View.VISIBLE
+                }
             }
 
-            override fun onReceivedHttpError(
-                view: WebView,
-                request: WebResourceRequest,
-                errorResponse: android.webkit.WebResourceResponse
-            ) {
-                if (request.isForMainFrame && errorResponse.statusCode >= 500) showError()
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
+                val uri = request?.url ?: return false
+                val host = uri.host ?: return false
+                // Keep store & Shopify checkout inside app; open external social links in browser
+                return if (host.endsWith("al-madar.vercel.app") ||
+                    host.endsWith("myshopify.com") ||
+                    host.endsWith("shopify.com") ||
+                    host.endsWith("shop.app")
+                ) {
+                    false
+                } else {
+                    startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    true
+                }
             }
+        }
+
+        swipeRefresh.setOnRefreshListener { webView.reload() }
+        retryBtn.setOnClickListener {
+            errorView.visibility = View.GONE
+            splashOverlay.alpha = 1f
+            splashOverlay.visibility = View.VISIBLE
+            webView.reload()
         }
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (errorPanel.visibility == View.VISIBLE) {
-                    if (webView.canGoBack()) webView.goBack() else loadStore()
-                } else if (webView.canGoBack()) {
-                    webView.goBack()
-                } else {
-                    finish()
-                }
+                if (webView.canGoBack()) webView.goBack() else finish()
             }
         })
 
-        if (savedInstanceState != null) webView.restoreState(savedInstanceState)
-        else loadStore()
-    }
-
-    private fun hasInternet(): Boolean {
-        val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = manager.activeNetwork ?: return false
-        val capabilities = manager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-    }
-
-    private fun loadStore() {
-        errorPanel.visibility = View.GONE
-        if (!hasInternet()) {
-            swipeRefresh.isRefreshing = false
-            showError(getString(R.string.no_connection))
-            return
-        }
-        webView.loadUrl(if (webView.url.isNullOrBlank()) STORE_URL else webView.url!!)
-    }
-
-    private fun showError(message: String = getString(R.string.load_error)) {
-        runOnUiThread {
-            swipeRefresh.isRefreshing = false
-            progress.visibility = View.GONE
-            errorMessage.text = message
-            errorPanel.visibility = View.VISIBLE
-        }
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        webView.saveState(outState)
-        super.onSaveInstanceState(outState)
-    }
-
-    @SuppressLint("SetJavaScriptEnabled")
-    override fun onDestroy() {
-        webView.apply {
-            stopLoading()
-            webChromeClient = null
-            webViewClient = WebViewClient()
-            destroy()
-        }
-        super.onDestroy()
+        webView.loadUrl(storeBaseUrl)
     }
 }
